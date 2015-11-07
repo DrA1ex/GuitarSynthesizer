@@ -4,11 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using GuitarSynthesizer.Engine;
 using GuitarSynthesizer.Engine.BankImpl;
+using GuitarSynthesizer.Engine.SampleProviders;
+using GuitarSynthesizer.Helpers;
+using NAudio.CoreAudioApi;
 using NAudio.Midi;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace GuitarSynthesizer
 {
@@ -47,18 +50,15 @@ namespace GuitarSynthesizer
 
     internal class Program
     {
-        private const float Metre = 4; //4 quarter notes per beat
         private static Dictionary<string, RawSourceWaveStream> _mediaBank;
 
         private static Dictionary<char, float> _durations;
         private static readonly object SyncDummy = new object();
 
-        private static readonly SynchronizationContext SynchronizationContext = SynchronizationContext.Current ?? new SynchronizationContext();
-
         public static Dictionary<string, RawSourceWaveStream> MediaBank => 
             _mediaBank ?? (_mediaBank = new Dictionary<string, RawSourceWaveStream>());
 
-        public static Dictionary<char, float> Durations => _durations ?? (_durations =
+        private static Dictionary<char, float> Durations => _durations ?? (_durations =
             new Dictionary<char, float>
             {
                 {'w', 1.0f},
@@ -87,7 +87,8 @@ namespace GuitarSynthesizer
             {
                 Console.WriteLine("Song file missing :(");
                 Console.WriteLine();
-                Console.WriteLine("Usage: {0}.exe <song file path>", Process.GetCurrentProcess().ProcessName);
+                Console.WriteLine("Usage: {0}.exe <song file path> [-e <file name>]", Process.GetCurrentProcess().ProcessName);
+                Console.WriteLine("Options: -e <file name.wav> Export track as wave file");
                 phrases = ParseString(songStr);
             }
             else
@@ -122,7 +123,26 @@ namespace GuitarSynthesizer
             try
             {
                 Console.WriteLine();
-                Task.Run(() => PlayString(phrases, tempo)).Wait();
+                if(arg.Length >= 3 && arg[1] == "-e")
+                {
+                    var filePath = arg[2];
+
+                    var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 1);
+                    var bank = new FenderStratCleanB(waveFormat);
+
+                    var trackSampleProvider = new TrackSampleProvider(bank, phrases, tempo);
+                    var resultingSampleProvider = new VolumeSampleProvider(trackSampleProvider)
+                    {
+                        Volume = 0.7f
+                    };
+
+                    WaveFileWriter.CreateWaveFile(filePath, new SampleToWaveProvider(resultingSampleProvider));
+                    Console.WriteLine("Export finished");
+                }
+                else
+                {
+                    PlayString(phrases, tempo);
+                }
             }
             catch(AggregateException e)
             {
@@ -269,87 +289,52 @@ namespace GuitarSynthesizer
 
             return phrases;
         }
-
+        
         public static void PlayString(IEnumerable<Phrase> phrases, int tempo)
         {
             lock(SyncDummy)
             {
-                Thread.CurrentThread.Priority = ThreadPriority.Highest;
+                var enumerator = new MMDeviceEnumerator();
+                MMDevice defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(defaultDevice.AudioClient.MixFormat.SampleRate, 1);
 
-                using(var engine = new AudioEngine())
+                var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, false, 60);
+                var bank = new FenderStratCleanB(waveFormat);
+
+                var trackSampleProvider = new TrackSampleProvider(bank, phrases, tempo);
+                wasapiOut.Init(new VolumeSampleProvider(trackSampleProvider)
                 {
-                    engine.MediaBank = new FenderStratCleanB(engine.OutWaveFormat);
-                    float barDuration = 60.0f / tempo * Metre * 1000; //in ms
-                    engine.LetItRingFadeTime = TimeSpan.FromMilliseconds(barDuration);
+                    Volume = 0.7f
+                });
 
-                    SynchronizationContext.Post(state =>
-                                                {
-                                                    PrintHeaderOfTable();
-                                                    PrintContentTable("NOTE", "DURATION", "COMMAND");
-                                                    PrintRowDividerTable();
-                                                }, null);
+                PrintHeaderOfTable();
+                PrintContentTable("NOTES", "DURATION", "COMMAND");
+                PrintRowDividerTable();
 
+                trackSampleProvider.OnPhrasePlaying += (sender, phrase) =>
+                {
+                    PrintContentTable(phrase.Notes != null && phrase.Notes.Length > 0
+                        ? String.Join(",", phrase.Notes)
+                        : "NONE"
+                        , (int)(phrase.GetPhraseSeconds(tempo) * 1000)
+                        , phrase.Command);
+                };
 
-                    foreach(Phrase phrase in phrases)
+                wasapiOut.Play();
+                
+                var resetEvent = new ManualResetEvent(false);
+
+                wasapiOut.PlaybackStopped += (sender, args) =>
+                {
+                    resetEvent.Set();
+                    if(args.Exception != null)
                     {
-                        Phrase copyOfPhrase = phrase;
-                        SynchronizationContext.Post(state => PrintContentTable(copyOfPhrase.Notes != null && copyOfPhrase.Notes.Length > 0
-                            ? String.Join(",", copyOfPhrase.Notes)
-                            : "NONE"
-                            , (int)(copyOfPhrase.Duration * barDuration)
-                            , copyOfPhrase.Command), null);
-
-
-                        switch(phrase.Command)
-                        {
-                            case PlayingCommand.None:
-                                break;
-                            case PlayingCommand.LetItRingOn:
-                                engine.LetItRing = true;
-                                break;
-                            case PlayingCommand.LetItRingOff:
-                                engine.LetItRing = false;
-                                break;
-
-                            case PlayingCommand.LetRingWhole:
-                                engine.LetItRingFadeTime = TimeSpan.FromMilliseconds(barDuration);
-                                break;
-                            case PlayingCommand.LetRingHalf:
-                                engine.LetItRingFadeTime = TimeSpan.FromMilliseconds(barDuration / 2);
-                                break;
-                            case PlayingCommand.LetRingQuarter:
-                                engine.LetItRingFadeTime = TimeSpan.FromMilliseconds(barDuration / 4);
-                                break;
-                        }
-
-                        if(phrase.Notes != null)
-                        {
-                            foreach(Note note in phrase.Notes)
-                            {
-                                engine.PlayNote(note);
-                            }
-
-                            var notePlayingTime = (int)(barDuration * phrase.Duration);
-                            Thread.Sleep(notePlayingTime);
-
-                            foreach(Note note in phrase.Notes)
-                            {
-                                if(phrase.Command == PlayingCommand.LetRingNotes)
-                                {
-                                    engine.StopFaded(note);
-                                }
-                                else
-                                {
-                                    engine.StopNote(note);
-                                }
-                            }
-                        }
+                        throw args.Exception;
                     }
+                };
 
-                    SynchronizationContext.Post(state => PrintFooterOfTable(), null);
-
-                    Thread.Sleep(1000);
-                }
+                resetEvent.WaitOne();
+                PrintFooterOfTable();
             }
         }
 

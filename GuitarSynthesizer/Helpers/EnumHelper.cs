@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace GuitarSynthesizer.Engine
+namespace GuitarSynthesizer.Helpers
 {
-    internal static class Utils
+    internal static class EnumHelper
     {
         public static T ConvertToEnum<T>(this string enumString)
         {

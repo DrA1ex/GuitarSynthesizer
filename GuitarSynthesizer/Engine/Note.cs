@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
+using GuitarSynthesizer.Helpers;
 
 namespace GuitarSynthesizer.Engine
 {
