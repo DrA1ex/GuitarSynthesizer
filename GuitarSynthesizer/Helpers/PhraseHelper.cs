@@ -1,4 +1,5 @@
-﻿using NAudio.Wave;
+﻿using GuitarSynthesizer.Model;
+using NAudio.Wave;
 
 namespace GuitarSynthesizer.Helpers
 {

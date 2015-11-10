@@ -39,11 +39,6 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Engine\BankImpl\FenderStratCleanB.cs" />
@@ -52,10 +47,14 @@
     <Compile Include="Engine\Note.cs" />
     <Compile Include="Engine\SampleProviders\FadeOutSampleProvider.cs" />
     <Compile Include="Engine\SampleProviders\TrackSampleProvider.cs" />
+    <Compile Include="Model\Phrase.cs" />
+    <Compile Include="PlayingCommand.cs" />
+    <Compile Include="Utils\ParseUtils.cs" />
     <Compile Include="Helpers\PhraseHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Helpers\EnumHelper.cs" />
+    <Compile Include="Utils\PrintUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

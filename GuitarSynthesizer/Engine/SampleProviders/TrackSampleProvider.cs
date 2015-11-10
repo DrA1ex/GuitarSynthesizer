@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using GuitarSynthesizer.Helpers;
+using GuitarSynthesizer.Model;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -22,7 +23,9 @@ namespace GuitarSynthesizer.Engine.SampleProviders
             CurrentLetRingFadeOut = QuarterNoteFadeOutTime;
 
             MediaBank = mediaBank;
-            Phrases = new Queue<Phrase>(phrases);
+            PhrasesQueue = new Queue<Phrase>(phrases);
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            Phrases = (IReadOnlyCollection<Phrase>)PhrasesQueue;
             Tempo = tempo;
 
             Mixer = new MixingSampleProvider(MediaBank.TargetWaveFormat)
@@ -40,7 +43,8 @@ namespace GuitarSynthesizer.Engine.SampleProviders
         private float QuarterNoteFadeOutTime { get; }
 
         public MediaBankBase MediaBank { get; }
-        public Queue<Phrase> Phrases { get; }
+        public IReadOnlyCollection<Phrase> Phrases { get; }
+        private Queue<Phrase> PhrasesQueue { get; }
         public int Tempo { get; }
 
         private long Position { get; set; }
@@ -67,7 +71,7 @@ namespace GuitarSynthesizer.Engine.SampleProviders
 
             while(Phrases.Count > 0 && written < count)
             {
-                var phrase = Phrases.Dequeue();
+                var phrase = PhrasesQueue.Dequeue();
                 TriggerPhrasePlaying(phrase);
                 var letRingPhrase = false;
 

@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NAudio.Wave;
 
 namespace GuitarSynthesizer.Engine
 {
     public abstract class MediaBankBase
     {
-        private Dictionary<Note, List<byte[]>> _mediaDictionary;
-
         protected MediaBankBase(WaveFormat targetFormat)
         {
             TargetWaveFormat = targetFormat;
@@ -19,8 +18,7 @@ namespace GuitarSynthesizer.Engine
 
         private Random Random { get; }
 
-        protected Dictionary<Note, List<byte[]>> MediaDictionary => 
-            _mediaDictionary ?? (_mediaDictionary = new Dictionary<Note, List<byte[]>>());
+        protected Dictionary<Note, byte[][]> MediaDictionary { get; private set; }
 
         public WaveFormat TargetWaveFormat { get; }
 
@@ -28,8 +26,8 @@ namespace GuitarSynthesizer.Engine
         {
             if(MediaDictionary.ContainsKey(note))
             {
-                List<byte[]> mediaForNote = MediaDictionary[note];
-                byte[] data = mediaForNote[Random.Next(mediaForNote.Count)];
+                var mediaForNote = MediaDictionary[note];
+                var data = mediaForNote[Random.Next(mediaForNote.Length)];
 
                 return new RawSourceWaveStream(new MemoryStream(data), TargetWaveFormat);
             }
@@ -49,40 +47,37 @@ namespace GuitarSynthesizer.Engine
 
         protected void LoadMedia()
         {
-            var buffer = new byte[1024];
+            var mediaPathes = GetMediaPathes();
 
-            foreach(var media in GetMediaPathes())
+            MediaDictionary = mediaPathes.Where(
+                m => !string.IsNullOrWhiteSpace(Path.GetFileNameWithoutExtension(m.Value)))
+                .GroupBy(m => m.Key)
+                .ToDictionary(group => group.Key,
+                    group => group.Select(path => GetMediaBytes(path.Value)).ToArray());
+        }
+
+        private byte[] GetMediaBytes(string path)
+        {
+            using(var reader = new AudioFileReader(path))
             {
-                string fileName = Path.GetFileNameWithoutExtension(media.Value);
-                if(String.IsNullOrWhiteSpace(fileName))
+                var buffer = new byte[1024];
+
+                var needResampling = TargetWaveFormat.SampleRate != reader.WaveFormat.SampleRate;
+
+                var resampledStream = needResampling
+                    ? (WaveStream)
+                        new ResamplerDmoStream(reader,
+                            WaveFormat.CreateIeeeFloatWaveFormat(TargetWaveFormat.SampleRate, 1))
+                    : reader;
+
+                var outStream = new MemoryStream {Capacity = (int)reader.Length};
+                int readed;
+                while((readed = resampledStream.Read(buffer, 0, buffer.Length)) != 0)
                 {
-                    continue;
+                    outStream.Write(buffer, 0, readed);
                 }
 
-                using(var reader = new AudioFileReader(media.Value))
-                {
-                    bool needResampling = TargetWaveFormat.SampleRate != reader.WaveFormat.SampleRate;
-
-                    WaveStream resampledStream = needResampling
-                        ? (WaveStream)new ResamplerDmoStream(reader, WaveFormat.CreateIeeeFloatWaveFormat(TargetWaveFormat.SampleRate, 1))
-                        : reader;
-
-                    var outStream = new MemoryStream { Capacity = (int)reader.Length };
-                    int readed;
-                    while((readed = resampledStream.Read(buffer, 0, buffer.Length)) != 0)
-                    {
-                        outStream.Write(buffer, 0, readed);
-                    }
-
-                    if(MediaDictionary.ContainsKey(media.Key))
-                    {
-                        MediaDictionary[media.Key].Add(outStream.GetBuffer());
-                    }
-                    else
-                    {
-                        MediaDictionary.Add(media.Key, new List<byte[]> { outStream.GetBuffer() });
-                    }
-                }
+                return outStream.GetBuffer();
             }
         }
 
