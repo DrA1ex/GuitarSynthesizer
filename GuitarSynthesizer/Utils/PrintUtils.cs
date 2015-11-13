@@ -1,56 +1,98 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GuitarSynthesizer.Utils
 {
     internal class PrintUtils
     {
-        private const int FirstColumnLength = 32;
-        private const int SecondColumnLength = 20;
-        private const int ThirdColumnLength = 22;
+        private const int MinColumnsPerTrack = 30;
 
-        private const string ContentPattern = "{{{0},-{1}}}";
-        private const string HeaderPattern = "┌{0}┬{1}┬{2}┐";
-        private const string RowDividerPattern = "├{0}┼{1}┼{2}┤";
-        private const string FooterPattern = "└{0}┴{1}┴{2}┘";
+        private const string HeaderFirstSymbol = "┌";
+        private const string HeaderPartSymbol = "┬";
+        private const string HeaderLastSymbol = "┐";
+
+        private const string RowFirstSymbol = "├";
+        private const string RowPartSymbol = "┼";
+        private const string RowLastSymbol = "┤";
+        private const string RowLinePartSymbol = "│";
+
+        private const string FooterFirstSymbol = "└";
+        private const string FooterPartSymbol = "┴";
+        private const string FooterLastSymbol = "┘";
+
         private const char HorizontalLineSymbol = '─';
 
-        private static readonly string ContentLinePattern =
-            $"│{String.Format(ContentPattern, 0, FirstColumnLength)}" +
-            $"│{String.Format(ContentPattern, 1, SecondColumnLength)}" +
-            $"│{String.Format(ContentPattern, 2, ThirdColumnLength)}│";
+        private static int TrackCount { get; set; }
+        private static int ColumnsPerTrack { get; set; }
+
+        private static string ContentPattern { get; set; }
+
+        internal static void Init(int trackCount)
+        {
+            TrackCount = trackCount;
+            ColumnsPerTrack = Math.Max(MinColumnsPerTrack, (Console.BufferWidth - trackCount - 1) / trackCount);
+            Console.BufferWidth = ColumnsPerTrack * trackCount + trackCount + 2; // + dividers + first and last symbol + \r\n
+            Console.WindowWidth = Console.BufferWidth;
+
+            ContentPattern = $"{{0,-{ColumnsPerTrack}}}";
+        }
 
         internal static void PrintHeaderOfTable()
         {
-            Console.WriteLine(HeaderPattern
-                , new string(HorizontalLineSymbol, FirstColumnLength)
-                , new string(HorizontalLineSymbol, SecondColumnLength)
-                , new string(HorizontalLineSymbol, ThirdColumnLength));
+            PrintHeaderLine();
+            for(int i = 0; i < TrackCount; i++)
+            {
+                Console.Write(RowLinePartSymbol);
+                Console.Write(ContentPattern, String.Format("TRACK #{0}", i + 1));
+            }
+            Console.WriteLine(RowLinePartSymbol);
         }
 
-        internal static void PrintContentTable(object first, object second, object third)
+        private static void PrintHeaderLine()
         {
-            Console.WriteLine(ContentLinePattern, first, second, third);
+            PrintLine(HeaderFirstSymbol, HeaderPartSymbol, HeaderLastSymbol, HorizontalLineSymbol, ColumnsPerTrack);
         }
 
+        internal static void PrintContentTable()
+        {
+            for(int i = 0; i < TrackCount; i++)
+            {
+                Console.Write(RowLinePartSymbol);
+                Console.Write(ContentPattern, "");
+            }
+
+            Console.Write(RowLinePartSymbol);
+        }
+
+        internal static void PrintContent(object obj, int position)
+        {
+            Console.SetCursorPosition(1 + position * (ColumnsPerTrack + 1), Console.CursorTop);
+            Console.Write(ContentPattern, obj);
+        }
 
         internal static void PrintRowDividerTable()
         {
-            Console.WriteLine(RowDividerPattern
-                , new string(HorizontalLineSymbol, FirstColumnLength)
-                , new string(HorizontalLineSymbol, SecondColumnLength)
-                , new string(HorizontalLineSymbol, ThirdColumnLength));
+            PrintLine(RowFirstSymbol, RowPartSymbol, RowLastSymbol, HorizontalLineSymbol, ColumnsPerTrack);
         }
 
         internal static void PrintFooterOfTable()
         {
-            Console.WriteLine(FooterPattern
-                , new string(HorizontalLineSymbol, FirstColumnLength)
-                , new string(HorizontalLineSymbol, SecondColumnLength)
-                , new string(HorizontalLineSymbol, ThirdColumnLength));
+            PrintLine(FooterFirstSymbol, FooterPartSymbol, FooterLastSymbol, HorizontalLineSymbol, ColumnsPerTrack);
+        }
+
+        private static void PrintLine(string first, string part, string last, char fill, int length)
+        {
+            var line = new string(fill, length);
+            Console.Write(first);
+            for(int i = 0; i < TrackCount; i++)
+            {
+                if(i > 0)
+                {
+                    Console.Write(part);
+                }
+
+                Console.Write(line);
+            }
+            Console.WriteLine(last);
         }
     }
 }

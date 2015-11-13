@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading;
 using GuitarSynthesizer.Engine.BankImpl;
 using GuitarSynthesizer.Engine.SampleProviders;
-using GuitarSynthesizer.Helpers;
 using GuitarSynthesizer.Model;
 using GuitarSynthesizer.Utils;
 using NAudio.CoreAudioApi;
@@ -112,8 +111,25 @@ namespace GuitarSynthesizer
             var mixer = new MixingSampleProvider(waveFormat);
 
             var trackSampleProviders = tracks.Select(t => new TrackSampleProvider(bank, t, tempo)).ToArray();
+            var playedTracks = new List<int>();
+
             foreach(var track in trackSampleProviders)
             {
+                track.OnPhrasePlaying += (sender, phrase) =>
+                {
+                    if(playedTracks.Contains(phrase.Channel))
+                    {
+                        Console.WriteLine();
+                        PrintUtils.PrintContentTable();
+
+                        playedTracks.Clear();
+                    }
+                    PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0
+                        ? String.Join(",", phrase.Notes)
+                        : phrase.Command.ToString(), phrase.Channel);
+
+                    playedTracks.Add(phrase.Channel);
+                };
                 mixer.AddMixerInput(track);
             }
 
@@ -122,21 +138,11 @@ namespace GuitarSynthesizer
                 Volume = 0.7f
             });
 
-            PrintUtils.PrintHeaderOfTable();
-            PrintUtils.PrintContentTable("NOTES", "DURATION", "COMMAND");
-            PrintUtils.PrintRowDividerTable();
+            PrintUtils.Init(trackSampleProviders.Length);
 
-            if(trackSampleProviders.Any())
-            {
-                trackSampleProviders.OrderByDescending(t => t.Phrases.Length).First().OnPhrasePlaying += (sender, phrase) =>
-                {
-                    PrintUtils.PrintContentTable(phrase.Notes != null && phrase.Notes.Length > 0
-                        ? String.Join(",", phrase.Notes)
-                        : "NONE"
-                        , (int)(phrase.GetPhraseSeconds(tempo) * 1000)
-                        , phrase.Command);
-                };
-            }
+            PrintUtils.PrintHeaderOfTable();
+            PrintUtils.PrintRowDividerTable();
+            PrintUtils.PrintContentTable();
 
             wasapiOut.Play();
 
@@ -152,6 +158,7 @@ namespace GuitarSynthesizer
             };
 
             resetEvent.WaitOne();
+            Console.WriteLine();
             PrintUtils.PrintFooterOfTable();
         }
     }

@@ -62,7 +62,7 @@ namespace GuitarSynthesizer.Utils
                 {
                     if(token.StartsWith("=")) //command
                     {
-                        var command = new Phrase(PlayingCommand.None);
+                        var command = new Phrase(0, PlayingCommand.None);
 
                         switch(token)
                         {
@@ -116,7 +116,7 @@ namespace GuitarSynthesizer.Utils
                             string notesString = token.Substring(0, token.Length - 1 - dots);
                             IEnumerable<Note> notes = notesString.Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries).Select(Note.FromString);
 
-                            var phrase = new Phrase(phraseDuration, notes.Distinct().ToArray()) { Command = noteModifier };
+                            var phrase = new Phrase(0, phraseDuration, notes.Distinct().ToArray()) { Command = noteModifier };
                             noteModifier = PlayingCommand.None;
 
                             phrases.Add(phrase);
@@ -150,7 +150,8 @@ namespace GuitarSynthesizer.Utils
                 }
             }
 
-            for(int trackNumber = 0; trackNumber < file.Tracks; ++trackNumber)
+            var channel = 0;
+            for(int trackNumber = 0; trackNumber < file.Tracks; ++trackNumber, ++channel)
             {
                 var phrases = new List<Phrase>();
 
@@ -171,14 +172,15 @@ namespace GuitarSynthesizer.Utils
                     {
                         long pauseTime = noteCollection.Key - lastTime;
 
-                        phrases.Add(new Phrase(pauseTime / WholeNoteDuration));
+                        phrases.Add(new Phrase(channel, pauseTime / WholeNoteDuration));
                     }
 
                     int duration = noteCollection.Max(c => c.NoteLength);
                     var phrase = new Phrase
                     {
                         Duration = duration / WholeNoteDuration,
-                        Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray()
+                        Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray(),
+                        Channel = channel
                     };
 
                     lastTime = noteCollection.Key + duration;
