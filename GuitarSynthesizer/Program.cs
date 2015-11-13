@@ -128,7 +128,7 @@ namespace GuitarSynthesizer
 
             if(trackSampleProviders.Any())
             {
-                trackSampleProviders.OrderByDescending(t => t.Phrases.Count).First().OnPhrasePlaying += (sender, phrase) =>
+                trackSampleProviders.OrderByDescending(t => t.Phrases.Length).First().OnPhrasePlaying += (sender, phrase) =>
                 {
                     PrintUtils.PrintContentTable(phrase.Notes != null && phrase.Notes.Length > 0
                         ? String.Join(",", phrase.Notes)

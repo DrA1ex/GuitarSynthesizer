@@ -7,7 +7,7 @@ namespace GuitarSynthesizer.Helpers
     {
         public const float BaseTempo = 60.0f;
 
-        public static int GetPhraseBytes(this Phrase phrase, int tempo, WaveFormat waveFormat)
+        public static int GetPhraseSamples(this Phrase phrase, int tempo, WaveFormat waveFormat)
         {
             return (int)(phrase.GetPhraseSeconds(tempo) * waveFormat.AverageBytesPerSecond);
         }

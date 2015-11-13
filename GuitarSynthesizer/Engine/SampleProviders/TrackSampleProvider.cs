@@ -23,10 +23,12 @@ namespace GuitarSynthesizer.Engine.SampleProviders
             CurrentLetRingFadeOut = QuarterNoteFadeOutTime;
 
             MediaBank = mediaBank;
-            PhrasesQueue = new Queue<Phrase>(phrases);
+            Phrases = phrases.ToArray();
+            PhrasesQueue = new Queue<Phrase>(Phrases);
             // ReSharper disable once SuspiciousTypeConversion.Global
-            Phrases = (IReadOnlyCollection<Phrase>)PhrasesQueue;
             Tempo = tempo;
+            TrackSamples = Phrases.Sum(c => (long)c.GetPhraseSamples(Tempo, WaveFormat));
+            TrackDuration = TimeSpan.FromTicks(TrackSamples / WaveFormat.AverageBytesPerSecond * (WaveFormat.BitsPerSample / 8) * TimeSpan.TicksPerSecond);
 
             Mixer = new MixingSampleProvider(MediaBank.TargetWaveFormat)
             {
@@ -43,104 +45,186 @@ namespace GuitarSynthesizer.Engine.SampleProviders
         private float QuarterNoteFadeOutTime { get; }
 
         public MediaBankBase MediaBank { get; }
-        public IReadOnlyCollection<Phrase> Phrases { get; }
-        private Queue<Phrase> PhrasesQueue { get; }
+        public Phrase[] Phrases { get; }
+        private Queue<Phrase> PhrasesQueue { get; set; }
         public int Tempo { get; }
+        public TimeSpan TrackDuration { get; }
+        private long TrackSamples { get; }
 
-        private long Position { get; set; }
+        private long PositionInSamples { get; set; }
 
         private float CurrentLetRingFadeOut { get; set; }
         private bool LetRingEnabled { get; set; }
 
         private MixingSampleProvider Mixer { get; }
 
-        private int RemainingBytes { get; set; }
+        private int RemainingSamples { get; set; }
         private int RemainingDelayBeforeStop { get; set; }
 
         public WaveFormat WaveFormat => MediaBank.TargetWaveFormat;
 
+        private readonly object _syncDummy = new object();
+
         public int Read(float[] buffer, int offset, int count)
         {
-            var written = 0;
-            if(RemainingBytes > 0)
+            lock(_syncDummy)
             {
-                var readed = Math.Min(RemainingBytes, count);
-                RemainingBytes -= readed;
-                written += readed;
-            }
-
-            while(Phrases.Count > 0 && written < count)
-            {
-                var phrase = PhrasesQueue.Dequeue();
-                TriggerPhrasePlaying(phrase);
-                var letRingPhrase = false;
-
-                switch(phrase.Command)
+                var written = 0;
+                if(RemainingSamples > 0)
                 {
-                    case PlayingCommand.LetItRingOn:
-                        LetRingEnabled = true;
-                        break;
-                    case PlayingCommand.LetItRingOff:
-                        LetRingEnabled = false;
-                        break;
-                    case PlayingCommand.LetRingNotes:
-                        letRingPhrase = true;
-                        break;
-                    case PlayingCommand.LetRingWhole:
-                        CurrentLetRingFadeOut = WholeNoteFadeOutTime;
-                        break;
-                    case PlayingCommand.LetRingHalf:
-                        CurrentLetRingFadeOut = HalfNoteFadeOutTime;
-                        break;
-                    case PlayingCommand.LetRingQuarter:
-                        CurrentLetRingFadeOut = QuarterNoteFadeOutTime;
-                        break;
+                    var readed = Math.Min(RemainingSamples, count);
+                    RemainingSamples -= readed;
+                    written += readed;
                 }
 
-                RemainingBytes = phrase.GetPhraseBytes(Tempo, WaveFormat);
-                if(phrase.Notes?.Any() ?? false)
+                while(PhrasesQueue.Count > 0 && written < count)
                 {
-                    var phraseDuration = phrase.GetPhraseSeconds(Tempo);
-                    var additionalDuration = LetRingEnabled || letRingPhrase
-                        ? CurrentLetRingFadeOut
-                        : 0;
+                    var phrase = PhrasesQueue.Dequeue();
+                    TriggerPhrasePlaying(phrase);
+                    var letRingPhrase = false;
 
-                    var sampleProviders = phrase.Notes.Select(n => MediaBank.GetMedia(n)?.ToSampleProvider())
-                        .Where(s => s != null).ToArray();
-
-                    if(sampleProviders.Any())
+                    switch(phrase.Command)
                     {
-                        var phraseSampleProvider = new FadeOutSampleProvider(new MixingSampleProvider(sampleProviders),
-                            phraseDuration + additionalDuration, DefaultFadeOutTime);
-                        Mixer.AddMixerInput(new OffsetSampleProvider(phraseSampleProvider) {DelayBySamples = written});
+                        case PlayingCommand.LetItRingOn:
+                            LetRingEnabled = true;
+                            break;
+                        case PlayingCommand.LetItRingOff:
+                            LetRingEnabled = false;
+                            break;
+                        case PlayingCommand.LetRingNotes:
+                            letRingPhrase = true;
+                            break;
+                        case PlayingCommand.LetRingWhole:
+                            CurrentLetRingFadeOut = WholeNoteFadeOutTime;
+                            break;
+                        case PlayingCommand.LetRingHalf:
+                            CurrentLetRingFadeOut = HalfNoteFadeOutTime;
+                            break;
+                        case PlayingCommand.LetRingQuarter:
+                            CurrentLetRingFadeOut = QuarterNoteFadeOutTime;
+                            break;
                     }
+
+                    RemainingSamples = phrase.GetPhraseSamples(Tempo, WaveFormat);
+                    var phraseSampleProvider = CreateSampleProvider(phrase, written, letRingPhrase);
+                    if(phraseSampleProvider != null)
+                    {
+                        Mixer.AddMixerInput(phraseSampleProvider);
+                    }
+
+                    var samplesToRead = Math.Min(RemainingSamples, count - written);
+                    written += samplesToRead;
+                    RemainingSamples -= samplesToRead;
                 }
 
-                var bytesToRead = Math.Min(RemainingBytes, count - written);
-                written += bytesToRead;
-                RemainingBytes -= bytesToRead;
-            }
-
-            if(RemainingDelayBeforeStop > 0)
-            {
-                var bytesToRead = Phrases.Any()
-                    ? count
-                    : Math.Min(written + RemainingDelayBeforeStop, count);
-                var readedFromMixer = Mixer.Read(buffer, offset, bytesToRead);
-
-                if(RemainingBytes <= 0 && !Phrases.Any())
+                if(RemainingDelayBeforeStop > 0)
                 {
-                    RemainingDelayBeforeStop -= readedFromMixer - written;
+                    var samplesToRead = PhrasesQueue.Any()
+                        ? count
+                        : Math.Min(written + RemainingDelayBeforeStop, count);
+                    var readedFromMixer = Mixer.Read(buffer, offset, samplesToRead);
+
+                    if(RemainingSamples <= 0 && !PhrasesQueue.Any())
+                    {
+                        RemainingDelayBeforeStop -= readedFromMixer - written;
+                    }
+
+                    PositionInSamples += readedFromMixer;
+                    return readedFromMixer;
                 }
 
-                Position += readedFromMixer;
-                return readedFromMixer;
+                return 0;
             }
-
-            return 0;
         }
 
-        public long GetPosition() => Position;
+        private ISampleProvider CreateSampleProvider(Phrase phrase, int offset, bool letRingPhrase)
+        {
+            if(phrase.Notes?.Any() ?? false)
+            {
+                var phraseDuration = phrase.GetPhraseSeconds(Tempo);
+                var additionalDuration = LetRingEnabled || letRingPhrase
+                    ? CurrentLetRingFadeOut
+                    : 0;
+
+                var sampleProviders = phrase.Notes.Select(n => MediaBank.GetMedia(n)?.ToSampleProvider())
+                    .Where(s => s != null).ToArray();
+
+                if(sampleProviders.Any())
+                {
+                    var phraseSampleProvider =
+                        new FadeOutSampleProvider(new MixingSampleProvider(sampleProviders),
+                            phraseDuration + additionalDuration, DefaultFadeOutTime);
+                    if(offset > 0)
+                    {
+                        return new OffsetSampleProvider(phraseSampleProvider)
+                        {
+                            DelayBySamples = offset
+                        };
+                    }
+
+                    return phraseSampleProvider;
+                }
+            }
+
+            return null;
+        }
+
+        public void Seek(long newPosition)
+        {
+            lock(_syncDummy)
+            {
+                Mixer.RemoveAllMixerInputs();
+                PhrasesQueue = new Queue<Phrase>(Phrases);
+
+                if(newPosition == 0)
+                {
+                    PositionInSamples = 0;
+                }
+                else if(newPosition > 0 && newPosition < TrackSamples)
+                {
+                    long currentPosition = 0;
+                    long lastPhraseDuration = 0;
+                    long previousPosition = 0;
+                    Phrase lastPhrase = default(Phrase);
+                    while(currentPosition < newPosition && PhrasesQueue.Any())
+                    {
+                        lastPhrase = PhrasesQueue.Dequeue();
+                        lastPhraseDuration = lastPhrase.GetPhraseSamples(Tempo, WaveFormat);
+                        previousPosition = currentPosition;
+                        currentPosition += lastPhraseDuration;
+                    }
+
+                    int offset = (int)(newPosition - previousPosition);
+                    PositionInSamples = newPosition;
+                    RemainingSamples = (int)(lastPhraseDuration - offset);
+                    var phraseSampleProvider = CreateSampleProvider(lastPhrase, 0, false);
+                    if(phraseSampleProvider != null)
+                    {
+                        Mixer.AddMixerInput(new OffsetSampleProvider(phraseSampleProvider)
+                        {
+                            SkipOverSamples = offset
+                        });
+                    }
+                }
+                else if(newPosition > 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(newPosition), "New position should be less than track duration");
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(newPosition), "New position should be grether then 0");
+                }
+            }
+        }
+
+        public void Seek(TimeSpan newPosition)
+        {
+            // ReSharper disable once PossibleLossOfFraction
+            var samplePosition = (long)(newPosition.TotalSeconds * WaveFormat.AverageBytesPerSecond / (WaveFormat.BitsPerSample / 8));
+            Seek(samplePosition);
+        }
+
+        public long GetPosition() => PositionInSamples * (WaveFormat.BitsPerSample / 8);
 
         public WaveFormat OutputWaveFormat => WaveFormat;
 
