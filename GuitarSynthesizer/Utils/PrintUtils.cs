@@ -4,6 +4,7 @@ namespace GuitarSynthesizer.Utils
 {
     internal class PrintUtils
     {
+        private static readonly int MaxBufferWidth = Console.LargestWindowWidth;
         private const int MinColumnsPerTrack = 30;
 
         private const string HeaderFirstSymbol = "┌";
@@ -29,12 +30,21 @@ namespace GuitarSynthesizer.Utils
         internal static void Init(int trackCount)
         {
             TrackCount = trackCount;
-            ColumnsPerTrack = Math.Max(MinColumnsPerTrack, (Console.BufferWidth - trackCount - 1) / trackCount);
-            Console.BufferWidth = ColumnsPerTrack * trackCount + trackCount + 2; // + dividers + first and last symbol + \r\n
+            ColumnsPerTrack = Math.Max(MinColumnsPerTrack, ComputeWidthPerColumn(trackCount, Console.BufferWidth));
+            var newWidth = ComputeWidth(trackCount, ColumnsPerTrack);
+            if(newWidth > MaxBufferWidth)
+            {
+                ColumnsPerTrack = ComputeWidthPerColumn(trackCount, MaxBufferWidth);
+                newWidth = ComputeWidth(trackCount, ColumnsPerTrack);
+            }
+            Console.BufferWidth = newWidth;
             Console.WindowWidth = Console.BufferWidth;
 
             ContentPattern = $"{{0,-{ColumnsPerTrack}}}";
         }
+
+        private static int ComputeWidthPerColumn(int trackCount, int consoleWidth) => (consoleWidth - trackCount - 1) / trackCount;
+        private static int ComputeWidth(int trackCount, int widthPerTrack) => widthPerTrack * trackCount + trackCount + 2; // + dividers + first and last symbol + \r\n
 
         internal static void PrintHeaderOfTable()
         {
