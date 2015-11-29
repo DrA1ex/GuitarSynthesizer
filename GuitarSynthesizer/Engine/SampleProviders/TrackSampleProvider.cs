@@ -13,20 +13,20 @@ namespace GuitarSynthesizer.Engine.SampleProviders
     {
         private const float DefaultFadeOutTime = 0.01f; //seconds
 
-        public TrackSampleProvider(MediaBankBase mediaBank, IEnumerable<Phrase> phrases, int tempo)
+        public TrackSampleProvider(MediaBankBase mediaBank, Track track)
         {
             SyncContext = SynchronizationContext.Current;
 
-            WholeNoteFadeOutTime = PhraseHelper.BaseTempo / tempo;
+            Tempo = track.Tempo;
+            WholeNoteFadeOutTime = PhraseHelper.BaseTempo / Tempo;
             HalfNoteFadeOutTime = WholeNoteFadeOutTime / 2;
             QuarterNoteFadeOutTime = HalfNoteFadeOutTime / 2;
             CurrentLetRingFadeOut = QuarterNoteFadeOutTime;
 
             MediaBank = mediaBank;
-            Phrases = phrases.ToArray();
+            Phrases = track.Phrases.ToArray();
             PhrasesQueue = new Queue<Phrase>(Phrases);
             // ReSharper disable once SuspiciousTypeConversion.Global
-            Tempo = tempo;
             TrackSamples = Phrases.Sum(c => (long)c.GetPhraseSamples(Tempo, WaveFormat));
             TrackDuration = TimeSpan.FromTicks(TrackSamples / WaveFormat.AverageBytesPerSecond * (WaveFormat.BitsPerSample / 8) * TimeSpan.TicksPerSecond);
 

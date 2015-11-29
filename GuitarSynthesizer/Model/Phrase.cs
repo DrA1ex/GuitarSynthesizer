@@ -2,7 +2,7 @@ using GuitarSynthesizer.Engine;
 
 namespace GuitarSynthesizer.Model
 {
-    internal struct Phrase
+    public struct Phrase
     {
         public Phrase(int channel, float duration, params Note[] notes)
             : this()

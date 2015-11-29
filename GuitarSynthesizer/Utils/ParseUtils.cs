@@ -29,16 +29,17 @@ namespace GuitarSynthesizer.Utils
 
         private const float WholeNoteDuration = 1920.0f;
 
-        public static void SaveSong(IEnumerable<Phrase[]> tracks, int tempo, string filePath)
+        public static void SaveSong(IEnumerable<Track> tracks, string filePath)
         {
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 1);
-            var bank = new FenderStratCleanB(waveFormat);
+            MediaBankBase bank = new FenderStratCleanB(waveFormat);
+            MediaBankBase bassBank = new RockdaleBassBridge(waveFormat);
 
             var mixer = new MixingSampleProvider(waveFormat);
 
             foreach(var track in tracks)
             {
-                var trackSampleProvider = new TrackSampleProvider(bank, track, tempo);
+                var trackSampleProvider = new TrackSampleProvider(track.Patch == MediaPatch.CleanGuitar ? bank : bassBank, track);
                 var resultingSampleProvider = new VolumeSampleProvider(trackSampleProvider)
                 {
                     Volume = 0.7f
@@ -50,7 +51,7 @@ namespace GuitarSynthesizer.Utils
             WaveFileWriter.CreateWaveFile(filePath, new SampleToWaveProvider(mixer));
         }
 
-        public static IEnumerable<Phrase> ParseString(string songStr)
+        public static Track ParseString(string songStr)
         {
             var phrases = new List<Phrase>();
 
@@ -130,15 +131,20 @@ namespace GuitarSynthesizer.Utils
             }
 
 
-            return phrases;
+            return new Track()
+            {
+                Patch = MediaPatch.CleanGuitar,
+                Phrases = phrases,
+                Tempo = 60
+            };
         }
 
-        public static IEnumerable<Phrase[]> ParseMidi(string fileName, out int tempo)
+        public static IEnumerable<Track> ParseMidi(string fileName)
         {
-            var tracks = new List<Phrase[]>();
-            tempo = 120;
-
+            var tracks = new List<Track>();
             var file = new MidiFile(fileName);
+
+            var tempo = 120;
             for(int trackNumber = 0; trackNumber < file.Tracks; ++trackNumber)
             {
                 IList<MidiEvent> events = file.Events[trackNumber];
@@ -162,6 +168,10 @@ namespace GuitarSynthesizer.Utils
                     continue;
                 }
 
+                MediaPatch mediaPatch = PatchChangeEvent.GetPatchName(path?.Patch ?? 0)
+                    .IndexOf("bass", StringComparison.InvariantCultureIgnoreCase) != -1 
+                    ? MediaPatch.Bass : MediaPatch.CleanGuitar;
+
                 IEnumerable<IGrouping<long, NoteOnEvent>> notes =
                     events.OfType<NoteOnEvent>().GroupBy(c => c.AbsoluteTime);
 
@@ -173,7 +183,7 @@ namespace GuitarSynthesizer.Utils
                         long pauseTime = noteCollection.Key - lastTime;
 
                         phrases.Add(new Phrase(channel, pauseTime / WholeNoteDuration));
-                    }
+                    } 
 
                     int duration = noteCollection.Max(c => c.NoteLength);
                     var phrase = new Phrase
@@ -188,7 +198,12 @@ namespace GuitarSynthesizer.Utils
                     phrases.Add(phrase);
                 }
 
-                tracks.Add(phrases.ToArray());
+                tracks.Add(new Track
+                {
+                    Tempo = tempo,
+                    Patch = mediaPatch,
+                    Phrases = phrases.ToArray()
+                });
             }
 
             return tracks;

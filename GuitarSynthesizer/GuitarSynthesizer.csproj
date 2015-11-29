@@ -42,12 +42,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Engine\BankImpl\FenderStratCleanB.cs" />
+    <Compile Include="Engine\BankImpl\RockdaleBassBridge.cs" />
     <Compile Include="Engine\MediaBankBase.cs" />
     <Compile Include="Engine\MediaBankGuitarBase.cs" />
     <Compile Include="Engine\Note.cs" />
     <Compile Include="Engine\SampleProviders\FadeOutSampleProvider.cs" />
     <Compile Include="Engine\SampleProviders\TrackSampleProvider.cs" />
+    <Compile Include="Model\MediaPatch.cs" />
     <Compile Include="Model\Phrase.cs" />
+    <Compile Include="Model\Track.cs" />
     <Compile Include="PlayingCommand.cs" />
     <Compile Include="Utils\ParseUtils.cs" />
     <Compile Include="Helpers\PhraseHelper.cs" />
@@ -227,6 +230,108 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="media\FenderStratCleanB\9.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\0.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\1.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\10.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\11.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\12.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\13.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\14.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\15.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\16.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\17.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\18.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\19.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\2.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\20.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\21.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\22.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\23.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\24.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\25.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\26.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\27.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\28.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\29.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\3.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\30.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\31.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\32.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\33.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\4.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\5.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\6.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\7.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\8.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="media\Rockdale_Bass_Bridge\9.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using GuitarSynthesizer.Engine;
 using GuitarSynthesizer.Engine.BankImpl;
 using GuitarSynthesizer.Engine.SampleProviders;
 using GuitarSynthesizer.Model;
@@ -25,7 +26,7 @@ namespace GuitarSynthesizer
             //      duration (w,h,q,e,s,t,l) -- whole note, half note, etc
             //      also duration may includes points (.)
 
-            IEnumerable<Phrase[]> tracks;
+            IEnumerable<Track> tracks;
             string songStr = "C5s C#5s D5h q. G3_G4_B4q D5_F5q q G3_D5_F5q G3_D5_F5e e. A3_C5_E5e. e B3_B4_D5e. e. C4_G4_C5q E4q G3q E4q C3_C4w ";
             int tempo = 400;
 
@@ -35,7 +36,9 @@ namespace GuitarSynthesizer
                 Console.WriteLine();
                 Console.WriteLine("Usage: {0}.exe <song file path> [-e <file name>]", Process.GetCurrentProcess().ProcessName);
                 Console.WriteLine("Options: -e <file name.wav> Export track as wave file");
-                tracks = new[] { ParseUtils.ParseString(songStr).ToArray() };
+                var track = ParseUtils.ParseString(songStr);
+                track.Tempo = tempo;
+                tracks = new[] { track };
             }
             else
             {
@@ -43,7 +46,7 @@ namespace GuitarSynthesizer
 
                 if(String.Equals(fileExtension, ".mid", StringComparison.OrdinalIgnoreCase) || String.Equals(fileExtension, ".midi", StringComparison.OrdinalIgnoreCase))
                 {
-                    tracks = ParseUtils.ParseMidi(arg[0], out tempo);
+                    tracks = ParseUtils.ParseMidi(arg[0]);
                 }
                 else
                 {
@@ -58,8 +61,9 @@ namespace GuitarSynthesizer
                     {
                         Console.WriteLine("File invalid :(");
                     }
-
-                    tracks = new[] { ParseUtils.ParseString(songStr).ToArray() };
+                    var track = ParseUtils.ParseString(songStr);
+                    track.Tempo = tempo;
+                    tracks = new[] { track };
                 }
 
                 Console.WriteLine("Song: {0}",
@@ -73,12 +77,12 @@ namespace GuitarSynthesizer
                 {
                     var filePath = arg[2];
 
-                    ParseUtils.SaveSong(tracks, tempo, filePath);
+                    ParseUtils.SaveSong(tracks, filePath);
                     Console.WriteLine("Export finished");
                 }
                 else
                 {
-                    PlaySong(tracks, tempo);
+                    PlaySong(tracks);
                 }
             }
             catch(AggregateException e)
@@ -99,18 +103,19 @@ namespace GuitarSynthesizer
             Console.ReadKey();
         }
 
-        public static void PlaySong(IEnumerable<Phrase[]> tracks, int tempo)
+        public static void PlaySong(IEnumerable<Track> tracks)
         {
             var enumerator = new MMDeviceEnumerator();
             MMDevice defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(defaultDevice.AudioClient.MixFormat.SampleRate, 1);
 
             var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, false, 60);
-            var bank = new FenderStratCleanB(waveFormat);
+            MediaBankBase bank = new FenderStratCleanB(waveFormat);
+            MediaBankBase bankBass = new RockdaleBassBridge(waveFormat);
 
             var mixer = new MixingSampleProvider(waveFormat);
 
-            var trackSampleProviders = tracks.Select(t => new TrackSampleProvider(bank, t, tempo)).ToArray();
+            var trackSampleProviders = tracks.Select(t => new TrackSampleProvider(t.Patch == MediaPatch.CleanGuitar ? bank : bankBass, t)).ToArray();
             var playedTracks = new List<int>();
 
             foreach(var track in trackSampleProviders)

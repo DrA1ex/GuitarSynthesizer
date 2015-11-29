@@ -1,6 +1,6 @@
 namespace GuitarSynthesizer
 {
-    internal enum PlayingCommand
+    public enum PlayingCommand
     {
         None,
         LetItRingOn,
