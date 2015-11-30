@@ -120,20 +120,24 @@ namespace GuitarSynthesizer
 
             foreach(var track in trackSampleProviders)
             {
-                track.OnPhrasePlaying += (sender, phrase) =>
+                track.OnPhrasePlaying += (sender, args) =>
                 {
-                    if(playedTracks.Contains(phrase.Channel))
+                    var channel = args.Track.Channel;
+                    var phrase = args.Phrase;
+
+                    if(playedTracks.Contains(channel))
                     {
                         AsyncConsole.WriteLine();
                         PrintUtils.PrintContentTable();
 
                         playedTracks.Clear();
                     }
+                    
                     PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0
                         ? String.Join(",", phrase.Notes)
-                        : phrase.Command.ToString(), phrase.Channel);
+                        : phrase.Command.ToString(), channel);
 
-                    playedTracks.Add(phrase.Channel);
+                    playedTracks.Add(channel);
                 };
                 mixer.AddMixerInput(track);
             }

@@ -4,24 +4,21 @@ namespace GuitarSynthesizer.Model
 {
     public struct Phrase
     {
-        public Phrase(int channel, float duration, params Note[] notes)
+        public Phrase(float duration, params Note[] notes)
             : this()
         {
-            Channel = channel;
             Notes = notes;
             Duration = duration;
             Command = PlayingCommand.None;
         }
 
-        public Phrase(int channel,PlayingCommand command)
+        public Phrase(PlayingCommand command)
             : this()
         {
-            Channel = channel;
             Command = command;
         }
 
 
-        public int Channel { get; set; }
         public Note[] Notes { get; set; }
         public float Duration { get; set; }
         public PlayingCommand Command { get; set; }

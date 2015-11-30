@@ -13,6 +13,7 @@ namespace GuitarSynthesizer.Utils
 {
     internal class ParseUtils
     {
+        private const float WholeNoteDuration = 1920.0f;
         private static Dictionary<char, float> _durations;
 
         private static Dictionary<char, float> Durations => _durations ?? (_durations =
@@ -24,10 +25,8 @@ namespace GuitarSynthesizer.Utils
                 {'e', 1.0f / 8.0f},
                 {'s', 1.0f / 16.0f},
                 {'t', 1.0f / 32.0f},
-                {'l', 1.0f / 64.0f},
+                {'l', 1.0f / 64.0f}
             });
-
-        private const float WholeNoteDuration = 1920.0f;
 
         public static void SaveSong(IEnumerable<Track> tracks, string filePath)
         {
@@ -39,7 +38,8 @@ namespace GuitarSynthesizer.Utils
 
             foreach(var track in tracks)
             {
-                var trackSampleProvider = new TrackSampleProvider(track.Patch == MediaPatch.CleanGuitar ? bank : bassBank, track);
+                var trackSampleProvider =
+                    new TrackSampleProvider(track.Patch == MediaPatch.CleanGuitar ? bank : bassBank, track);
                 var resultingSampleProvider = new VolumeSampleProvider(trackSampleProvider)
                 {
                     Volume = 0.7f
@@ -55,15 +55,15 @@ namespace GuitarSynthesizer.Utils
         {
             var phrases = new List<Phrase>();
 
-            if(!String.IsNullOrWhiteSpace(songStr))
+            if(!string.IsNullOrWhiteSpace(songStr))
             {
                 var noteModifier = PlayingCommand.None;
 
-                foreach(string token in songStr.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach(var token in songStr.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries))
                 {
                     if(token.StartsWith("=")) //command
                     {
-                        var command = new Phrase(0, PlayingCommand.None);
+                        var command = new Phrase(PlayingCommand.None);
 
                         switch(token)
                         {
@@ -101,23 +101,25 @@ namespace GuitarSynthesizer.Utils
                     {
                         try
                         {
-                            int dots = token.Count(c => c == '.');
-                            char duration = token[token.Length - 1 - dots];
-                            float phraseDuration = Durations.ContainsKey(duration) ? Durations[duration] : Durations['w'];
+                            var dots = token.Count(c => c == '.');
+                            var duration = token[token.Length - 1 - dots];
+                            var phraseDuration = Durations.ContainsKey(duration) ? Durations[duration] : Durations['w'];
                             if(dots > 0)
                             {
-                                float tempDuration = phraseDuration;
-                                for(int i = 0; i < dots; i++)
+                                var tempDuration = phraseDuration;
+                                for(var i = 0; i < dots; i++)
                                 {
                                     tempDuration /= 2;
                                     phraseDuration += tempDuration;
                                 }
                             }
 
-                            string notesString = token.Substring(0, token.Length - 1 - dots);
-                            IEnumerable<Note> notes = notesString.Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries).Select(Note.FromString);
+                            var notesString = token.Substring(0, token.Length - 1 - dots);
+                            var notes =
+                                notesString.Split(new[] {'_'}, StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(Note.FromString);
 
-                            var phrase = new Phrase(0, phraseDuration, notes.Distinct().ToArray()) { Command = noteModifier };
+                            var phrase = new Phrase(phraseDuration, notes.Distinct().ToArray()) {Command = noteModifier};
                             noteModifier = PlayingCommand.None;
 
                             phrases.Add(phrase);
@@ -131,11 +133,12 @@ namespace GuitarSynthesizer.Utils
             }
 
 
-            return new Track()
+            return new Track
             {
                 Patch = MediaPatch.CleanGuitar,
                 Phrases = phrases,
-                Tempo = 60
+                Tempo = 60,
+                Channel = 0
             };
         }
 
@@ -145,9 +148,9 @@ namespace GuitarSynthesizer.Utils
             var file = new MidiFile(fileName);
 
             var tempo = 120;
-            for(int trackNumber = 0; trackNumber < file.Tracks; ++trackNumber)
+            for(var trackNumber = 0; trackNumber < file.Tracks; ++trackNumber)
             {
-                IList<MidiEvent> events = file.Events[trackNumber];
+                var events = file.Events[trackNumber];
                 var tempoEvent = events.FirstOrDefault(c => c is TempoEvent) as TempoEvent;
 
                 if(tempoEvent != null)
@@ -157,22 +160,23 @@ namespace GuitarSynthesizer.Utils
             }
 
             var channel = 0;
-            for(int trackNumber = 0; trackNumber < file.Tracks; ++trackNumber, ++channel)
+            for(var trackNumber = 0; trackNumber < file.Tracks; ++trackNumber, ++channel)
             {
                 var phrases = new List<Phrase>();
 
-                IList<MidiEvent> events = file.Events[trackNumber];
+                var events = file.Events[trackNumber];
                 var path = events.FirstOrDefault(c => c is PatchChangeEvent) as PatchChangeEvent;
                 if(path != null && PatchChangeEvent.GetPatchName(path.Patch) == "Steel Drums")
                 {
                     continue;
                 }
 
-                MediaPatch mediaPatch = PatchChangeEvent.GetPatchName(path?.Patch ?? 0)
-                    .IndexOf("bass", StringComparison.InvariantCultureIgnoreCase) != -1 
-                    ? MediaPatch.Bass : MediaPatch.CleanGuitar;
+                var mediaPatch = PatchChangeEvent.GetPatchName(path?.Patch ?? 0)
+                    .IndexOf("bass", StringComparison.InvariantCultureIgnoreCase) != -1
+                    ? MediaPatch.Bass
+                    : MediaPatch.CleanGuitar;
 
-                IEnumerable<IGrouping<long, NoteOnEvent>> notes =
+                var notes =
                     events.OfType<NoteOnEvent>().GroupBy(c => c.AbsoluteTime);
 
                 long lastTime = 0;
@@ -180,17 +184,16 @@ namespace GuitarSynthesizer.Utils
                 {
                     if(noteCollection.Key - lastTime > 0)
                     {
-                        long pauseTime = noteCollection.Key - lastTime;
+                        var pauseTime = noteCollection.Key - lastTime;
 
-                        phrases.Add(new Phrase(channel, pauseTime / WholeNoteDuration));
-                    } 
+                        phrases.Add(new Phrase(pauseTime / WholeNoteDuration));
+                    }
 
-                    int duration = noteCollection.Max(c => c.NoteLength);
+                    var duration = noteCollection.Max(c => c.NoteLength);
                     var phrase = new Phrase
                     {
                         Duration = duration / WholeNoteDuration,
-                        Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray(),
-                        Channel = channel
+                        Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray()
                     };
 
                     lastTime = noteCollection.Key + duration;
@@ -202,7 +205,8 @@ namespace GuitarSynthesizer.Utils
                 {
                     Tempo = tempo,
                     Patch = mediaPatch,
-                    Phrases = phrases.ToArray()
+                    Phrases = phrases.ToArray(),
+                    Channel = channel
                 });
             }
 

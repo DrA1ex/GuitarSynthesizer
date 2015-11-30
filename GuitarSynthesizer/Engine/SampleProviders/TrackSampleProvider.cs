@@ -4,20 +4,31 @@ using System.Linq;
 using System.Threading;
 using GuitarSynthesizer.Helpers;
 using GuitarSynthesizer.Model;
+using NAudio.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
 namespace GuitarSynthesizer.Engine.SampleProviders
 {
+    internal class PhrasePlayingEventArgs
+    {
+        public Track Track { get; set; }
+        public Phrase Phrase { get; set; }
+        public TimeSpan CurrentTime { get; set; }
+    }
+
     internal class TrackSampleProvider : ISampleProvider, IWavePosition
     {
         private const float DefaultFadeOutTime = 0.01f; //seconds
+
+        private readonly object _syncDummy = new object();
 
         public TrackSampleProvider(MediaBankBase mediaBank, Track track)
         {
             SyncContext = SynchronizationContext.Current;
 
-            Tempo = track.Tempo;
+            Track = track;
+            Tempo = Track.Tempo;
             WholeNoteFadeOutTime = PhraseHelper.BaseTempo / Tempo;
             HalfNoteFadeOutTime = WholeNoteFadeOutTime / 2;
             QuarterNoteFadeOutTime = HalfNoteFadeOutTime / 2;
@@ -28,7 +39,9 @@ namespace GuitarSynthesizer.Engine.SampleProviders
             PhrasesQueue = new Queue<Phrase>(Phrases);
             // ReSharper disable once SuspiciousTypeConversion.Global
             TrackSamples = Phrases.Sum(c => (long)c.GetPhraseSamples(Tempo, WaveFormat));
-            TrackDuration = TimeSpan.FromTicks(TrackSamples / WaveFormat.AverageBytesPerSecond * (WaveFormat.BitsPerSample / 8) * TimeSpan.TicksPerSecond);
+            TrackDuration =
+                TimeSpan.FromTicks(TrackSamples / WaveFormat.AverageBytesPerSecond * (WaveFormat.BitsPerSample / 8) *
+                                   TimeSpan.TicksPerSecond);
 
             Mixer = new MixingSampleProvider(MediaBank.TargetWaveFormat)
             {
@@ -45,6 +58,7 @@ namespace GuitarSynthesizer.Engine.SampleProviders
         private float QuarterNoteFadeOutTime { get; }
 
         public MediaBankBase MediaBank { get; }
+        public Track Track { get; }
         public Phrase[] Phrases { get; }
         private Queue<Phrase> PhrasesQueue { get; set; }
         public int Tempo { get; }
@@ -63,8 +77,6 @@ namespace GuitarSynthesizer.Engine.SampleProviders
 
         public WaveFormat WaveFormat => MediaBank.TargetWaveFormat;
 
-        private readonly object _syncDummy = new object();
-
         public int Read(float[] buffer, int offset, int count)
         {
             lock(_syncDummy)
@@ -80,7 +92,13 @@ namespace GuitarSynthesizer.Engine.SampleProviders
                 while(PhrasesQueue.Count > 0 && written < count)
                 {
                     var phrase = PhrasesQueue.Dequeue();
-                    TriggerPhrasePlaying(phrase);
+                    TriggerPhrasePlaying(new PhrasePlayingEventArgs
+                    {
+                        Track = Track,
+                        Phrase = phrase,
+                        CurrentTime = this.GetPositionTimeSpan()
+                    });
+
                     var letRingPhrase = false;
 
                     switch(phrase.Command)
@@ -137,6 +155,10 @@ namespace GuitarSynthesizer.Engine.SampleProviders
             }
         }
 
+        public long GetPosition() => PositionInSamples * (WaveFormat.BitsPerSample / 8);
+
+        public WaveFormat OutputWaveFormat => WaveFormat;
+
         private ISampleProvider CreateSampleProvider(Phrase phrase, int offset, bool letRingPhrase)
         {
             if(phrase.Notes?.Any() ?? false)
@@ -185,7 +207,7 @@ namespace GuitarSynthesizer.Engine.SampleProviders
                     long currentPosition = 0;
                     long lastPhraseDuration = 0;
                     long previousPosition = 0;
-                    Phrase lastPhrase = default(Phrase);
+                    var lastPhrase = default(Phrase);
                     while(currentPosition < newPosition && PhrasesQueue.Any())
                     {
                         lastPhrase = PhrasesQueue.Dequeue();
@@ -194,7 +216,7 @@ namespace GuitarSynthesizer.Engine.SampleProviders
                         currentPosition += lastPhraseDuration;
                     }
 
-                    int offset = (int)(newPosition - previousPosition);
+                    var offset = (int)(newPosition - previousPosition);
                     PositionInSamples = newPosition;
                     RemainingSamples = (int)(lastPhraseDuration - offset);
                     var phraseSampleProvider = CreateSampleProvider(lastPhrase, 0, false);
@@ -208,7 +230,8 @@ namespace GuitarSynthesizer.Engine.SampleProviders
                 }
                 else if(newPosition > 0)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(newPosition), "New position should be less than track duration");
+                    throw new ArgumentOutOfRangeException(nameof(newPosition),
+                        "New position should be less than track duration");
                 }
                 else
                 {
@@ -220,17 +243,14 @@ namespace GuitarSynthesizer.Engine.SampleProviders
         public void Seek(TimeSpan newPosition)
         {
             // ReSharper disable once PossibleLossOfFraction
-            var samplePosition = (long)(newPosition.TotalSeconds * WaveFormat.AverageBytesPerSecond / (WaveFormat.BitsPerSample / 8));
+            var samplePosition =
+                (long)(newPosition.TotalSeconds * WaveFormat.AverageBytesPerSecond / (WaveFormat.BitsPerSample / 8));
             Seek(samplePosition);
         }
 
-        public long GetPosition() => PositionInSamples * (WaveFormat.BitsPerSample / 8);
+        public event EventHandler<PhrasePlayingEventArgs> OnPhrasePlaying;
 
-        public WaveFormat OutputWaveFormat => WaveFormat;
-
-        public event EventHandler<Phrase> OnPhrasePlaying;
-
-        protected virtual void TriggerPhrasePlaying(Phrase e)
+        protected virtual void TriggerPhrasePlaying(PhrasePlayingEventArgs e)
         {
             if(OnPhrasePlaying != null)
             {
