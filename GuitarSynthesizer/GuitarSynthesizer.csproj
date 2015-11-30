@@ -46,6 +46,7 @@
     <Compile Include="Engine\MediaBankBase.cs" />
     <Compile Include="Engine\MediaBankGuitarBase.cs" />
     <Compile Include="Engine\Note.cs" />
+    <Compile Include="Engine\SampleProviders\DelayedMixingSampleProvider.cs" />
     <Compile Include="Engine\SampleProviders\FadeOutSampleProvider.cs" />
     <Compile Include="Engine\SampleProviders\TrackSampleProvider.cs" />
     <Compile Include="Model\MediaPatch.cs" />

@@ -20,6 +20,7 @@ namespace GuitarSynthesizer.Engine.SampleProviders
     internal class TrackSampleProvider : ISampleProvider, IWavePosition
     {
         private const float DefaultFadeOutTime = 0.01f; //seconds
+        private const float DefaultChordNotesDelay = 0.01f; //seconds
 
         private readonly object _syncDummy = new object();
 
@@ -174,7 +175,9 @@ namespace GuitarSynthesizer.Engine.SampleProviders
                 if(sampleProviders.Any())
                 {
                     var phraseSampleProvider =
-                        new FadeOutSampleProvider(new MixingSampleProvider(sampleProviders),
+                        new FadeOutSampleProvider(sampleProviders.Length > 1
+                            ? new DelayedMixingSampleProvider(sampleProviders, DefaultChordNotesDelay, false)
+                            : sampleProviders.Single(),
                             phraseDuration + additionalDuration, DefaultFadeOutTime);
                     if(offset > 0)
                     {
