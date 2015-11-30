@@ -51,10 +51,10 @@ namespace GuitarSynthesizer.Utils
             PrintHeaderLine();
             for(int i = 0; i < TrackCount; i++)
             {
-                Console.Write(RowLinePartSymbol);
-                Console.Write(ContentPattern, String.Format("TRACK #{0}", i + 1));
+                AsyncConsole.Write(RowLinePartSymbol);
+                AsyncConsole.Write(ContentPattern, String.Format("TRACK #{0}", i + 1));
             }
-            Console.WriteLine(RowLinePartSymbol);
+            AsyncConsole.WriteLine(RowLinePartSymbol);
         }
 
         private static void PrintHeaderLine()
@@ -66,17 +66,17 @@ namespace GuitarSynthesizer.Utils
         {
             for(int i = 0; i < TrackCount; i++)
             {
-                Console.Write(RowLinePartSymbol);
-                Console.Write(ContentPattern, "");
+                AsyncConsole.Write(RowLinePartSymbol);
+                AsyncConsole.Write(ContentPattern, "");
             }
 
-            Console.Write(RowLinePartSymbol);
+            AsyncConsole.Write(RowLinePartSymbol);
         }
 
         internal static void PrintContent(object obj, int position)
         {
-            Console.SetCursorPosition(1 + position * (ColumnsPerTrack + 1), Console.CursorTop);
-            Console.Write(ContentPattern, obj);
+            AsyncConsole.SetCursorLeft(1 + position * (ColumnsPerTrack + 1));
+            AsyncConsole.Write(ContentPattern, obj);
         }
 
         internal static void PrintRowDividerTable()
@@ -92,17 +92,17 @@ namespace GuitarSynthesizer.Utils
         private static void PrintLine(string first, string part, string last, char fill, int length)
         {
             var line = new string(fill, length);
-            Console.Write(first);
+            AsyncConsole.Write(first);
             for(int i = 0; i < TrackCount; i++)
             {
                 if(i > 0)
                 {
-                    Console.Write(part);
+                    AsyncConsole.Write(part);
                 }
 
-                Console.Write(line);
+                AsyncConsole.Write(line);
             }
-            Console.WriteLine(last);
+            AsyncConsole.WriteLine(last);
         }
     }
 }

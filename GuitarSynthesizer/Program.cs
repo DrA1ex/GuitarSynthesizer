@@ -124,7 +124,7 @@ namespace GuitarSynthesizer
                 {
                     if(playedTracks.Contains(phrase.Channel))
                     {
-                        Console.WriteLine();
+                        AsyncConsole.WriteLine();
                         PrintUtils.PrintContentTable();
 
                         playedTracks.Clear();
