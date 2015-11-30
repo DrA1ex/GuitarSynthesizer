@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using CommandLine;
 using GuitarSynthesizer.Engine;
 using GuitarSynthesizer.Engine.BankImpl;
@@ -27,7 +28,7 @@ namespace GuitarSynthesizer
             //      also duration may includes points (.)
 
             var result = Parser.Default.ParseArguments<Options>(arg);
-            Options options = result.MapResult(o => o, errors =>
+            var options = result.MapResult(o => o, errors =>
             {
                 foreach(var error in errors)
                 {
@@ -37,9 +38,10 @@ namespace GuitarSynthesizer
             });
 
             IEnumerable<Track> tracks;
-            string songName = "Demo song";
-            string songStr = "C5s C#5s D5h q. G3_G4_B4q D5_F5q q G3_D5_F5q G3_D5_F5e e. A3_C5_E5e. e B3_B4_D5e. e. C4_G4_C5q E4q G3q E4q C3_C4w ";
-            int tempo = 400;
+            var songName = "Demo song";
+            var songStr =
+                "C5s C#5s D5h q. G3_G4_B4q D5_F5q q G3_D5_F5q G3_D5_F5e e. A3_C5_E5e. e B3_B4_D5e. e. C4_G4_C5q E4q G3q E4q C3_C4w ";
+            var tempo = 400;
 
             var track = ParseUtils.ParseString(songStr);
             track.Tempo = tempo;
@@ -47,15 +49,15 @@ namespace GuitarSynthesizer
 
             if(options != null)
             {
-                string fileExtension = Path.GetExtension(options.InputFileName);
-                if(String.Equals(fileExtension, ".mid", StringComparison.OrdinalIgnoreCase) ||
-                   String.Equals(fileExtension, ".midi", StringComparison.OrdinalIgnoreCase))
+                var fileExtension = Path.GetExtension(options.InputFileName);
+                if(string.Equals(fileExtension, ".mid", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(fileExtension, ".midi", StringComparison.OrdinalIgnoreCase))
                 {
                     tracks = ParseUtils.ParseMidi(options.InputFileName);
                 }
                 else
                 {
-                    string[] lines = File.ReadAllLines(options.InputFileName);
+                    var lines = File.ReadAllLines(options.InputFileName);
 
                     if(lines.Length >= 2)
                     {
@@ -77,26 +79,43 @@ namespace GuitarSynthesizer
             try
             {
                 AsyncConsole.WriteLine("SONG: {0}", songName.ToUpper());
-                if(!String.IsNullOrWhiteSpace(options?.ExportFileName))
+                if(string.IsNullOrWhiteSpace(options?.ExportFileName))
                 {
-                    ParseUtils.SaveSong(tracks, options.ExportFileName);
-                    AsyncConsole.WriteLine("Export finished");
+                    PlaySong(tracks);
                 }
                 else
                 {
-                    PlaySong(tracks);
+                    if(options.ExportSeparated)
+                    {
+                        Parallel.ForEach(tracks, t =>
+                        {
+                            ParseUtils.SaveSong(new[] { t },
+                                $"{Path.GetFileNameWithoutExtension(options.ExportFileName)}"
+                                + $"_{t.Channel}"
+                                + $"{Path.GetExtension(options.ExportFileName)}");
+                        });
+                    }
+                    else
+                    {
+                        ParseUtils.SaveSong(tracks, options.ExportFileName);
+                    }
+
+
+                    AsyncConsole.WriteLine("Export finished");
                 }
             }
             catch(AggregateException e)
             {
                 AsyncConsole.WriteLine();
-                string errorMesssage = e.InnerException != null ? string.Join(Environment.NewLine, e.InnerExceptions.Select(c => c.Message)) : e.Message;
+                var errorMesssage = e.InnerException != null
+                    ? string.Join(Environment.NewLine, e.InnerExceptions.Select(c => c.Message))
+                    : e.Message;
                 AsyncConsole.WriteLine("Error happened: {0}", errorMesssage);
             }
             catch(Exception e)
             {
                 AsyncConsole.WriteLine();
-                string errorMesssage = e.InnerException?.Message ?? e.Message;
+                var errorMesssage = e.InnerException?.Message ?? e.Message;
                 AsyncConsole.WriteLine("Error happened: {0}", errorMesssage);
             }
 
@@ -108,7 +127,7 @@ namespace GuitarSynthesizer
         public static void PlaySong(IEnumerable<Track> tracks)
         {
             var enumerator = new MMDeviceEnumerator();
-            MMDevice defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            var defaultDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(defaultDevice.AudioClient.MixFormat.SampleRate, 1);
 
             var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, false, 60);
@@ -117,7 +136,9 @@ namespace GuitarSynthesizer
 
             var mixer = new MixingSampleProvider(waveFormat);
 
-            var trackSampleProviders = tracks.Select(t => new TrackSampleProvider(t.Patch == MediaPatch.CleanGuitar ? bank : bankBass, t)).ToArray();
+            var trackSampleProviders =
+                tracks.Select(t => new TrackSampleProvider(t.Patch == MediaPatch.CleanGuitar ? bank : bankBass, t))
+                    .ToArray();
             var playedTracks = new List<int>();
 
             foreach(var track in trackSampleProviders)
@@ -136,7 +157,7 @@ namespace GuitarSynthesizer
                     }
 
                     PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0
-                        ? String.Join(",", phrase.Notes)
+                        ? string.Join(",", phrase.Notes)
                         : phrase.Command.ToString(), channel);
 
                     playedTracks.Add(channel);
