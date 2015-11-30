@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using GuitarSynthesizer.Helpers;
 using GuitarSynthesizer.Model;
+using GuitarSynthesizer.Utils;
 using NAudio.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;

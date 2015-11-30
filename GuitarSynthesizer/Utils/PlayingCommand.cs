@@ -1,4 +1,4 @@
-namespace GuitarSynthesizer
+namespace GuitarSynthesizer.Utils
 {
     public enum PlayingCommand
     {

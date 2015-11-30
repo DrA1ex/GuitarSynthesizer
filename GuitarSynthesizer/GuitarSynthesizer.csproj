@@ -33,6 +33,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CommandLine, Version=2.0.275.0, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommandLineParser.2.0.275-beta\lib\net45\CommandLine.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="NAudio, Version=1.7.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\NAudio.1.7.3\lib\net35\NAudio.dll</HintPath>
       <Private>True</Private>
@@ -52,7 +56,8 @@
     <Compile Include="Model\MediaPatch.cs" />
     <Compile Include="Model\Phrase.cs" />
     <Compile Include="Model\Track.cs" />
-    <Compile Include="PlayingCommand.cs" />
+    <Compile Include="Options.cs" />
+    <Compile Include="Utils\PlayingCommand.cs" />
     <Compile Include="Utils\AsyncConsole.cs" />
     <Compile Include="Utils\ParseUtils.cs" />
     <Compile Include="Helpers\PhraseHelper.cs" />

@@ -1,4 +1,5 @@
 using GuitarSynthesizer.Engine;
+using GuitarSynthesizer.Utils;
 
 namespace GuitarSynthesizer.Model
 {

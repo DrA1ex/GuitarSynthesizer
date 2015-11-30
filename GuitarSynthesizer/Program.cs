@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using CommandLine;
 using GuitarSynthesizer.Engine;
 using GuitarSynthesizer.Engine.BankImpl;
 using GuitarSynthesizer.Engine.SampleProviders;
@@ -26,59 +26,61 @@ namespace GuitarSynthesizer
             //      duration (w,h,q,e,s,t,l) -- whole note, half note, etc
             //      also duration may includes points (.)
 
+            var result = Parser.Default.ParseArguments<Options>(arg);
+            Options options = result.MapResult(o => o, errors =>
+            {
+                foreach(var error in errors)
+                {
+                    Console.Error.WriteLine(error);
+                }
+                return null;
+            });
+
             IEnumerable<Track> tracks;
+            string songName = "Demo song";
             string songStr = "C5s C#5s D5h q. G3_G4_B4q D5_F5q q G3_D5_F5q G3_D5_F5e e. A3_C5_E5e. e B3_B4_D5e. e. C4_G4_C5q E4q G3q E4q C3_C4w ";
             int tempo = 400;
 
-            if(arg.Length < 1 || !File.Exists(arg[0]))
-            {
-                Console.WriteLine("Song file missing :(");
-                Console.WriteLine();
-                Console.WriteLine("Usage: {0}.exe <song file path> [-e <file name>]", Process.GetCurrentProcess().ProcessName);
-                Console.WriteLine("Options: -e <file name.wav> Export track as wave file");
-                var track = ParseUtils.ParseString(songStr);
-                track.Tempo = tempo;
-                tracks = new[] { track };
-            }
-            else
-            {
-                string fileExtension = Path.GetExtension(arg[0]);
+            var track = ParseUtils.ParseString(songStr);
+            track.Tempo = tempo;
+            tracks = new[] { track };
 
-                if(String.Equals(fileExtension, ".mid", StringComparison.OrdinalIgnoreCase) || String.Equals(fileExtension, ".midi", StringComparison.OrdinalIgnoreCase))
+            if(options != null)
+            {
+                string fileExtension = Path.GetExtension(options.InputFileName);
+                if(String.Equals(fileExtension, ".mid", StringComparison.OrdinalIgnoreCase) ||
+                   String.Equals(fileExtension, ".midi", StringComparison.OrdinalIgnoreCase))
                 {
-                    tracks = ParseUtils.ParseMidi(arg[0]);
+                    tracks = ParseUtils.ParseMidi(options.InputFileName);
                 }
                 else
                 {
-                    string[] lines = File.ReadAllLines(arg[0]);
+                    string[] lines = File.ReadAllLines(options.InputFileName);
 
                     if(lines.Length >= 2)
                     {
                         songStr = lines[1];
                         tempo = int.Parse(lines[0]);
+                        track = ParseUtils.ParseString(songStr);
+                        track.Tempo = tempo;
+                        tracks = new[] { track };
                     }
                     else
                     {
-                        Console.WriteLine("File invalid :(");
+                        AsyncConsole.WriteLine("File invalid :(");
                     }
-                    var track = ParseUtils.ParseString(songStr);
-                    track.Tempo = tempo;
-                    tracks = new[] { track };
                 }
 
-                Console.WriteLine("Song: {0}",
-                    (Path.GetFileNameWithoutExtension(arg[0]) ?? String.Empty).ToUpper());
+                songName = Path.GetFileNameWithoutExtension(options.InputFileName) ?? songName;
             }
 
             try
             {
-                Console.WriteLine();
-                if(arg.Length >= 3 && arg[1] == "-e")
+                AsyncConsole.WriteLine("SONG: {0}", songName.ToUpper());
+                if(!String.IsNullOrWhiteSpace(options?.ExportFileName))
                 {
-                    var filePath = arg[2];
-
-                    ParseUtils.SaveSong(tracks, filePath);
-                    Console.WriteLine("Export finished");
+                    ParseUtils.SaveSong(tracks, options.ExportFileName);
+                    AsyncConsole.WriteLine("Export finished");
                 }
                 else
                 {
@@ -87,19 +89,19 @@ namespace GuitarSynthesizer
             }
             catch(AggregateException e)
             {
-                Console.WriteLine();
+                AsyncConsole.WriteLine();
                 string errorMesssage = e.InnerException != null ? string.Join(Environment.NewLine, e.InnerExceptions.Select(c => c.Message)) : e.Message;
-                Console.WriteLine("Error happened: {0}", errorMesssage);
+                AsyncConsole.WriteLine("Error happened: {0}", errorMesssage);
             }
             catch(Exception e)
             {
-                Console.WriteLine();
+                AsyncConsole.WriteLine();
                 string errorMesssage = e.InnerException?.Message ?? e.Message;
-                Console.WriteLine("Error happened: {0}", errorMesssage);
+                AsyncConsole.WriteLine("Error happened: {0}", errorMesssage);
             }
 
-            Console.WriteLine();
-            Console.WriteLine("Press any key to exit");
+            AsyncConsole.WriteLine();
+            AsyncConsole.WriteLine("Press any key to exit");
             Console.ReadKey();
         }
 
@@ -132,7 +134,7 @@ namespace GuitarSynthesizer
 
                         playedTracks.Clear();
                     }
-                    
+
                     PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0
                         ? String.Join(",", phrase.Notes)
                         : phrase.Command.ToString(), channel);
