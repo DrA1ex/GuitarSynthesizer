@@ -37,8 +37,9 @@ namespace GuitarSynthesizer.Utils
                 ColumnsPerTrack = ComputeWidthPerColumn(trackCount, MaxBufferWidth);
                 newWidth = ComputeWidth(trackCount, ColumnsPerTrack);
             }
-            Console.BufferWidth = newWidth;
-            Console.WindowWidth = Console.BufferWidth;
+            Console.BufferWidth = Math.Max(Console.BufferWidth, newWidth);
+            Console.WindowWidth = newWidth;
+            Console.CursorVisible = false;
 
             ContentPattern = $"{{0,-{ColumnsPerTrack}}}";
         }
@@ -52,7 +53,7 @@ namespace GuitarSynthesizer.Utils
             for(int i = 0; i < TrackCount; i++)
             {
                 AsyncConsole.Write(RowLinePartSymbol);
-                AsyncConsole.Write(ContentPattern, String.Format("TRACK #{0}", i + 1));
+                AsyncConsole.Write(ContentPattern, $"TRACK #{i + 1}");
             }
             AsyncConsole.WriteLine(RowLinePartSymbol);
         }
