@@ -18,6 +18,8 @@ namespace GuitarSynthesizer
 {
     internal class Program
     {
+        private static readonly string ExportFileExtension = ".wav";
+
         private static void Main(string[] arg)
         {
             //File format:
@@ -37,7 +39,6 @@ namespace GuitarSynthesizer
                 return null;
             });
 
-            IEnumerable<Track> tracks;
             var songName = "Demo song";
             var songStr =
                 "C5s C#5s D5h q. G3_G4_B4q D5_F5q q G3_D5_F5q G3_D5_F5e e. A3_C5_E5e. e B3_B4_D5e. e. C4_G4_C5q E4q G3q E4q C3_C4w ";
@@ -45,7 +46,7 @@ namespace GuitarSynthesizer
 
             var track = ParseUtils.ParseString(songStr);
             track.Tempo = tempo;
-            tracks = new[] { track };
+            IEnumerable<Track> tracks = new[] { track };
 
             if(options != null)
             {
@@ -85,19 +86,25 @@ namespace GuitarSynthesizer
                 }
                 else
                 {
+                    var absoluteExportPath = Path.GetFullPath(options.ExportFileName);
+                    var exportDir = Path.GetDirectoryName(absoluteExportPath);
+                    var exportFileName = Path.GetFileNameWithoutExtension(options.ExportFileName);
+                    if(exportDir != null && !Directory.Exists(exportDir))
+                    {
+                        Directory.CreateDirectory(exportDir);
+                    }
+
                     if(options.ExportSeparated)
                     {
                         Parallel.ForEach(tracks, t =>
                         {
                             ParseUtils.SaveSong(new[] { t },
-                                $"{Path.GetFileNameWithoutExtension(options.ExportFileName)}"
-                                + $"_{t.Channel}"
-                                + $"{Path.GetExtension(options.ExportFileName)}");
+                                Path.Combine(exportDir ?? string.Empty, exportFileName + "_" + t.Channel + ExportFileExtension));
                         });
                     }
                     else
                     {
-                        ParseUtils.SaveSong(tracks, options.ExportFileName);
+                        ParseUtils.SaveSong(tracks, Path.Combine(exportDir ?? string.Empty, exportFileName + ExportFileExtension));
                     }
 
 
