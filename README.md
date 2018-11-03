@@ -1,3 +1,3 @@
 # GuitarSynthesizer
 
-Simpe Guitar Synthesizer with Guitar/Bass sound banks
+Simpe Guitar Synthesizer with Guitar/Bass/Drums sound banks
