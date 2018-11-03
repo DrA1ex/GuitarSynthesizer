@@ -140,12 +140,26 @@ namespace GuitarSynthesizer
             var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, false, 60);
             MediaBankBase bank = new FenderStratCleanB(waveFormat);
             MediaBankBase bankBass = new RockdaleBassBridge(waveFormat);
+            MediaBankBase drumkit = new DrumkitMediaBank(waveFormat);
 
             var mixer = new MixingSampleProvider(waveFormat);
 
             var trackSampleProviders =
-                tracks.Select(t => new TrackSampleProvider(t.Patch == MediaPatch.CleanGuitar ? bank : bankBass, t))
-                    .ToArray();
+                tracks.Select(t =>
+                {
+                    switch(t.Patch)
+                    {
+                        case MediaPatch.CleanGuitar:
+                            return new TrackSampleProvider(bank, t);
+                        case MediaPatch.Bass:
+                            return new TrackSampleProvider(bankBass, t);
+                        case MediaPatch.Drums:
+                            return new TrackSampleProvider(drumkit, t);
+                    }
+
+                    throw new ArgumentOutOfRangeException();
+                }).ToArray();
+
             var playedTracks = new List<int>();
 
             foreach(var track in trackSampleProviders)
@@ -163,9 +177,7 @@ namespace GuitarSynthesizer
                         playedTracks.Clear();
                     }
 
-                    PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0
-                        ? string.Join(",", phrase.Notes)
-                        : phrase.Command.ToString(), channel);
+                    PrintUtils.PrintContent(phrase.Notes != null && phrase.Notes.Length > 0 ? string.Join(",", phrase.Notes) : phrase.Command.ToString(), channel);
 
                     playedTracks.Add(channel);
                 };

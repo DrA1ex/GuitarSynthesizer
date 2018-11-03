@@ -77,16 +77,20 @@ namespace GuitarSynthesizer.Engine
 
         public static Note operator +(Note note, int semitons)
         {
-            var octave = (byte) (note.Octave + semitons/12); // 12 полутонов в октаве
-            int tmp = (int) note.Tone + semitons%12;
-            if (tmp > (int) Tones.B) // Последняя нота в октаве
+            checked
             {
-                ++octave;
-                tmp = tmp%12;
-            }
-            var tone = (Tones) (tmp);
+                var octave = (byte)(note.Octave + semitons / 12); // 12 полутонов в октаве
+                int tmp = (int)note.Tone + semitons % 12;
+                if(tmp > (int)Tones.B) // Последняя нота в октаве
+                {
+                    ++octave;
+                    tmp = tmp % 12;
+                }
 
-            return new Note(octave, tone);
+                var tone = (Tones)(tmp);
+
+                return new Note(octave, tone);
+            }
         }
 
         public static bool operator <(Note note1, Note note2)

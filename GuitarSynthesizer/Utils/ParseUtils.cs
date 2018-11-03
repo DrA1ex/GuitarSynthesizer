@@ -33,13 +33,29 @@ namespace GuitarSynthesizer.Utils
             var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 1);
             MediaBankBase bank = new FenderStratCleanB(waveFormat);
             MediaBankBase bassBank = new RockdaleBassBridge(waveFormat);
+            MediaBankBase drumkitBank = new DrumkitMediaBank(waveFormat);
 
             var mixer = new MixingSampleProvider(waveFormat);
 
             foreach(var track in tracks)
             {
-                var trackSampleProvider =
-                    new TrackSampleProvider(track.Patch == MediaPatch.CleanGuitar ? bank : bassBank, track);
+                TrackSampleProvider trackSampleProvider;
+                switch(track.Patch)
+                {
+                    case MediaPatch.CleanGuitar:
+                        trackSampleProvider = new TrackSampleProvider(bank, track);
+                        break;
+                    case MediaPatch.Bass:
+                        trackSampleProvider = new TrackSampleProvider(bassBank, track);
+                        break;
+                    case MediaPatch.Drums:
+                        trackSampleProvider = new TrackSampleProvider(drumkitBank, track);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+
                 var resultingSampleProvider = new VolumeSampleProvider(trackSampleProvider)
                 {
                     Volume = 0.7f
@@ -115,9 +131,7 @@ namespace GuitarSynthesizer.Utils
                             }
 
                             var notesString = token.Substring(0, token.Length - 1 - dots);
-                            var notes =
-                                notesString.Split(new[] {'_'}, StringSplitOptions.RemoveEmptyEntries)
-                                    .Select(Note.FromString);
+                            var notes = notesString.Split(new[] {'_'}, StringSplitOptions.RemoveEmptyEntries).Select(Note.FromString);
 
                             var phrase = new Phrase(phraseDuration, notes.Distinct().ToArray()) {Command = noteModifier};
                             noteModifier = PlayingCommand.None;
@@ -135,10 +149,7 @@ namespace GuitarSynthesizer.Utils
 
             return new Track
             {
-                Patch = MediaPatch.CleanGuitar,
-                Phrases = phrases,
-                Tempo = 60,
-                Channel = 0
+                Patch = MediaPatch.CleanGuitar, Phrases = phrases, Tempo = 60, Channel = 0
             };
         }
 
@@ -171,13 +182,23 @@ namespace GuitarSynthesizer.Utils
                     continue;
                 }
 
-                var mediaPatch = PatchChangeEvent.GetPatchName(path?.Patch ?? 0)
-                    .IndexOf("bass", StringComparison.InvariantCultureIgnoreCase) != -1
-                    ? MediaPatch.Bass
-                    : MediaPatch.CleanGuitar;
+                var pathIndex = path?.Patch;
+                var pathName = PatchChangeEvent.GetPatchName(pathIndex ?? 0);
+                MediaPatch mediaPatch;
+                if(pathIndex == 0)
+                {
+                    mediaPatch = MediaPatch.Drums;
+                }
+                else if(pathName.IndexOf("bass", StringComparison.InvariantCultureIgnoreCase) != -1)
+                {
+                    mediaPatch = MediaPatch.Bass;
+                }
+                else
+                {
+                    mediaPatch = MediaPatch.CleanGuitar;
+                }
 
-                var notes =
-                    events.OfType<NoteOnEvent>().GroupBy(c => c.AbsoluteTime);
+                var notes = events.OfType<NoteOnEvent>().GroupBy(c => c.AbsoluteTime);
 
                 long lastTime = 0;
                 foreach(var noteCollection in notes)
@@ -192,8 +213,7 @@ namespace GuitarSynthesizer.Utils
                     var duration = noteCollection.Max(c => c.NoteLength);
                     var phrase = new Phrase
                     {
-                        Duration = duration / WholeNoteDuration,
-                        Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray()
+                        Duration = duration / WholeNoteDuration, Notes = noteCollection.Select(c => Note.FromId(c.NoteNumber)).ToArray()
                     };
 
                     lastTime = noteCollection.Key + duration;
@@ -203,10 +223,7 @@ namespace GuitarSynthesizer.Utils
 
                 tracks.Add(new Track
                 {
-                    Tempo = tempo,
-                    Patch = mediaPatch,
-                    Phrases = phrases.ToArray(),
-                    Channel = channel
+                    Tempo = tempo, Patch = mediaPatch, Phrases = phrases.ToArray(), Channel = channel
                 });
             }
 
